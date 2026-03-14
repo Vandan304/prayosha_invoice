@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #d4af37;
+  --color-secondary: #1a1a1a;
+}
+
+body {
+  background-color: #f9fafb; /* bg-gray-50 */
+  color: #1f2937; /* text-gray-800 */
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
+.navbar-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: contain;
+  background-color: white; /* Ensures transparent PNGs look good on any bg */
+}
+
+@media (max-width: 768px) {
+  .navbar-avatar {
+    width: 48px;
+    height: 48px;
+  }
+}
