@@ -3,10 +3,10 @@ DEPLOYMENT GUIDE: PRAYOSHA INVOICE
 1. GITHUB PUSH
 - Make sure you push the latest version with the new "vercel.json".
 
-2. VERCEL SETUP (TO AVOID 404)
-- Import repo in Vercel Dashboard.
-- IMPORTANT: Leave "Root Directory" empty (project root).
-- Framework: Vite.
+2. VERCEL SETUP (MATCH THESE SETTINGS)
+- Build Command: cd client && npm install && npm run build
+- Output Directory: client/dist
+- Install Command: cd client && npm install && cd ../server && npm install
 
 3. ENVIRONMENT VARIABLES (REQUIRED)
 In Vercel Settings > Environment Variables, add:

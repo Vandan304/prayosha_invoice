@@ -10,14 +10,14 @@ This project is configured as a monorepo containing both a React frontend (Vite)
 ### 2. Vercel Project Setup (Fixing 404)
 1. Go to [Vercel Dashboard](https://vercel.com/dashboard) and click **Add New** > **Project**.
 2. Import your GitHub repository (`prayosha_invoice`).
-3. **CRITICAL SETTINGS**:
-   - **Root Directory**: Do **NOT** select `client` or `server`. Leave it as the project root (`./`).
-   - **Framework Preset**: Vite.
-   - **Build & Output Settings**: Leave as default. The `vercel.json` will handle the routing.
+3. **CRITICAL SETTINGS** (Match your screenshot):
+   - **Root Directory**: Project root (leave as is).
+   - **Build Command**: `cd client && npm install && npm run build`
+   - **Output Directory**: `client/dist`
+   - **Install Command**: `cd client && npm install && cd ../server && npm install`
 
-### 3. Environment Variables
-In **Settings** > **Environment Variables**, you **MUST** add:
-- `MONGO_URI`: (Your MongoDB connection string)
+### 3. Why did I get a 404?
+- By default, Vercel doesn't know your app is in two folders. These settings tell Vercel exactly where to build the frontend and where the outputs are.
 - `NODE_ENV`: `production`
 - `VITE_API_URL`: `/api`
 

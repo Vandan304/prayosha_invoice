@@ -1,0 +1,9 @@
+{
+  "name": "prayosha_invoice_root",
+  "private": true,
+  "scripts": {
+    "build": "npm run build:client",
+    "build:client": "cd client && npm install && npm run build",
+    "install:all": "cd client && npm install && cd ../server && npm install"
+  }
+}
