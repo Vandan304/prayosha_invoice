@@ -5,7 +5,7 @@ This project is configured as a monorepo containing both a React frontend (Vite)
 ## Option 1: Vercel (Recommended)
 
 ### 1. Prerequisites
-- Push your code to a GitHub repository (Ensure `vercel.json` is in the root).
+- Push your code to a GitHub repository (Ensure `package.json` has `vite: ^6.2.0`).
 
 ### 2. Vercel Project Setup (Fixing 404)
 1. Go to [Vercel Dashboard](https://vercel.com/dashboard) and click **Add New** > **Project**.
