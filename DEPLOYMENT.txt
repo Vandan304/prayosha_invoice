@@ -1,44 +1,23 @@
 DEPLOYMENT GUIDE: PRAYOSHA INVOICE
 
-This project is configured as a monorepo containing both a React frontend (Vite) and an Express backend. It is optimized for deployment on Vercel.
+1. GITHUB PUSH
+- Make sure you push the latest version with the new "vercel.json".
 
-OPTION 1: VERCEL (RECOMMENDED)
+2. VERCEL SETUP (TO AVOID 404)
+- Import repo in Vercel Dashboard.
+- IMPORTANT: Leave "Root Directory" empty (project root).
+- Framework: Vite.
 
-1. PREREQUISITES
-- Push your code to a GitHub repository.
-
-2. VERCEL PROJECT SETUP
-- Go to the Vercel Dashboard and click "Add New > Project".
-- Import your GitHub repository.
-- Use the default "Vite" framework preset.
-- Root Directory: Leave it as "/" (the project root).
-- Vercel will use "vercel.json" to handle the deployment.
-
-3. ENVIRONMENT VARIABLES
+3. ENVIRONMENT VARIABLES (REQUIRED)
 In Vercel Settings > Environment Variables, add:
-- MONGO_URI: (Your MongoDB connection string)
+- MONGO_URI: (Your MongoDB Atlas connection URL)
 - NODE_ENV: production
-- VITE_API_URL: /api (or your backend URL)
+- VITE_API_URL: /api
 
-4. DEPLOYMENT
-Vercel will deploy automatically whenever you push to the "main" branch.
-
-
-OPTION 2: RENDER (FOR HEAVY BACKEND TASKS)
-
-If the backend feels slow on Vercel or you need real-time features (WebSockets):
-
-1. RENDER WEB SERVICE SETUP
-- Root Directory: server
-- Build Command: npm install
-- Start Command: node server.js
-- Environment Variables: MONGO_URI
-
-2. FRONTEND UPDATE
-If you move the backend to Render, update "client/src/services/api.js":
-baseURL: 'https://your-render-app.onrender.com/api'
-
+4. TROUBLESHOOTING
+- If "/" gives 404, check if "vercel.json" is in the root of your GitHub repo.
+- If "/api" gives 404, check "Functions" tab in Vercel.
 
 VERIFICATION
-- Frontend: https://your-app.vercel.app/
-- Backend API: https://your-app.vercel.app/api
+- Site: https://your-project.vercel.app/
+- API: https://your-project.vercel.app/api

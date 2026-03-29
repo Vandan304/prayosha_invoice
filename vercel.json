@@ -17,15 +17,16 @@
       "dest": "server/server.js"
     },
     {
-      "src": "/(.*)",
+      "src": "/assets/(.*)",
+      "dest": "client/assets/$1"
+    },
+    {
+      "src": "/((?!api/).*)",
       "dest": "client/$1",
       "check": true
     },
     {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/(.*)",
+      "src": "/((?!api/).*)",
       "dest": "client/index.html"
     }
   ]
