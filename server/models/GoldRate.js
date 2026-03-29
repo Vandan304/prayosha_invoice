@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const goldRateSchema = mongoose.Schema(
     {
         date: {
-            type: String, // Store as YYYY-MM-DD
+            type: String,
             required: true,
             unique: true,
         },

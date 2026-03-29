@@ -24,34 +24,20 @@ const invoiceSchema = mongoose.Schema(
             type: String,
             required: true,
         },
-        itemName: {
-            type: String,
-            required: true,
-        },
-        goldPurity: {
-            type: String,
-            required: true,
-        },
-        weight: {
-            type: Number,
-            required: true,
-        },
+        items: [{
+            itemName: { type: String, required: true },
+            goldPurity: { type: String, required: true },
+            weight: { type: Number, required: true },
+            makingCharge: { type: Number, required: true, default: 0 },
+            goldPrice: { type: Number, required: true }
+        }],
         goldRate: {
             type: Number,
             required: true,
         },
-        makingCharge: {
-            type: Number,
-            required: true,
-            default: 0,
-        },
         discount: {
             type: Number,
             default: 0,
-        },
-        goldPrice: {
-            type: Number,
-            required: true,
         },
         finalAmount: {
             type: Number,

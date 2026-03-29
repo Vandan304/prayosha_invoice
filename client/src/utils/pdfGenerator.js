@@ -5,74 +5,84 @@ const generatePDF = (invoiceData, action = 'download') => {
     // Standard A4 dimensions
     const doc = new jsPDF('p', 'pt', 'a4');
 
+    // 0. Religious Header
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.text("|| swami - shreeji ||", doc.internal.pageSize.getWidth() / 2, 25, { align: 'center' });
+
     // 1. Header (Brand Name)
     doc.setFontSize(28);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(212, 175, 55); // Hex #D4AF37 to RGB (Gold)
-    doc.text("PRAYOSHA", 40, 50);
+    doc.setTextColor(0, 0, 0); // Black instead of Gold
+    doc.text("PRAYOSHA", 40, 60);
 
     doc.setFontSize(14);
-    doc.text("JEWELLERS", 200, 50);
+    doc.text("JEWELLERS", 200, 60);
 
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(50, 50, 50);
-    doc.text("Gold & Silver Jewellery Merchant", 40, 65);
-    doc.text("Chokshi Bazar, Near Tower Bazar, Anand", 40, 80);
-    doc.text("Phone: 9687852764 | 7567190904", 40, 95);
+    doc.setTextColor(0, 0, 0); // Black
+    doc.text("Gold & Silver Jewellery Merchant", 40, 75);
+    doc.text("Chokshi Bazar, Near Tower Bazar, Anand", 40, 90);
+    doc.text("Phone: 9687852764 | 7567190904", 40, 105);
 
     // Decorative line
-    doc.setDrawColor(212, 175, 55);
+    doc.setDrawColor(0, 0, 0); // Black instead of Gold
     doc.setLineWidth(1.5);
-    doc.line(40, 110, 550, 110);
+    doc.line(40, 120, 550, 120);
 
     // 2. Invoice Details
     doc.setFontSize(11);
     doc.setFont("helvetica", "bold");
-    doc.text("INVOICE", 40, 135);
+    doc.text("INVOICE", 40, 145);
     
     doc.setFont("helvetica", "normal");
-    doc.text(`No: ${invoiceData.invoiceNumber}`, 40, 155);
+    doc.text(`No: ${invoiceData.invoiceNumber}`, 40, 165);
     
     // Format date properly
     const dateObj = new Date(invoiceData.date);
     const formattedDate = dateObj.toLocaleDateString('en-GB'); 
-    doc.text(`Date: ${formattedDate}`, 40, 175);
+    doc.text(`Date: ${formattedDate}`, 40, 185);
 
     // 3. Customer Details (Right side)
     doc.setFont("helvetica", "bold");
-    doc.text("BILL TO", 350, 135);
+    doc.text("BILL TO", 350, 145);
     doc.setFont("helvetica", "normal");
-    doc.text(`Name: ${invoiceData.customerName}`, 350, 155);
-    if(invoiceData.mobile) doc.text(`Mobile: ${invoiceData.mobile}`, 350, 175);
-    if(invoiceData.address) doc.text(`Address: ${invoiceData.address}`, 350, 195);
+    doc.text(`Name: ${invoiceData.customerName}`, 350, 165);
+    if(invoiceData.mobile) doc.text(`Mobile: ${invoiceData.mobile}`, 350, 185);
+    if(invoiceData.address) {
+        // Simple word wrap for address
+        const splitAddress = doc.splitTextToSize(`Address: ${invoiceData.address}`, 200);
+        doc.text(splitAddress, 350, 205);
+    }
 
     // 4. Products Table
-    const tableColumnHeaders = [["#", "Item Description", "Purity", "Weight (g)", "Rate (per 10g)", "Amount"]];
+    const tableColumnHeaders = [["#", "Item Description", "Purity", "Weight (gram)", "Rate (per gram)", "Amount"]];
     
     // For rate per 10g or per g logic 
     // Assuming typical gold rate input is per 10 grams, 
     // real amount = weight * (rate/10), but per requirements we just multiply them.
     // If the requirement meant Weight * Rate, we stick to that formula.
     
-    const tableRows = [
-        [
-            "1",
-            invoiceData.itemName,
-            invoiceData.goldPurity,
-            invoiceData.weight,
-            Number(invoiceData.goldRate).toLocaleString('en-IN'),
-            Number(invoiceData.goldPrice).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})
-        ]
-    ];
+    const itemsList = invoiceData.items && invoiceData.items.length > 0 ? invoiceData.items : [invoiceData];
+
+    const tableRows = itemsList.map((item, index) => [
+        (index + 1).toString(),
+        item.itemName || '',
+        item.goldPurity === '22k' ? '916 - 22k' : (item.goldPurity || 'N/A'),
+        Number(item.weight || 0).toFixed(3),
+        (Number(invoiceData.goldRate || 0) / 10).toLocaleString('en-IN', {minimumFractionDigits: 2}),
+        Number(item.goldPrice || 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})
+    ]);
 
     autoTable(doc, {
-        startY: 220,
+        startY: 230,
         head: tableColumnHeaders,
         body: tableRows,
         theme: 'grid',
         headStyles: {
-            fillColor: [212, 175, 55],
+            fillColor: [0, 0, 0], // Black instead of Gold
             textColor: 255,
             fontSize: 10,
             fontStyle: 'bold',
@@ -99,31 +109,33 @@ const generatePDF = (invoiceData, action = 'download') => {
 
     doc.setFont("helvetica", "normal");
     
-    // Left side info underneath table
+    // Left side info underneath table (T&C moved to bottom)
     doc.setFontSize(9);
-    doc.text("Terms & Conditions:", 40, calcSectionY);
-    doc.text("1. Goods once sold will not be returned under any conditions.", 40, calcSectionY + 15);
-    doc.text("2. Making charges are non-refundable.", 40, calcSectionY + 30);
-    doc.text("3. Subject to Anand Jurisdiction.", 40, calcSectionY + 45);
+    // Left empty for now, or you can add more info here
 
     // Right side amounts
     doc.setFontSize(10);
     const amountLabelX = 380;
     const amountValueX = 550; // Align right
 
-    doc.text("Gold Price:", amountLabelX, calcSectionY);
-    doc.text(`Rs. ${Number(invoiceData.goldPrice).toLocaleString('en-IN', {minimumFractionDigits: 2})}`, amountValueX, calcSectionY, { align: 'right' });
+    const totalGoldPrice = itemsList.reduce((sum, item) => sum + Number(item.goldPrice || 0), 0);
+    const totalMakingCharge = invoiceData.totalMakingCharge !== undefined 
+        ? Number(invoiceData.totalMakingCharge) 
+        : itemsList.reduce((sum, item) => sum + Number(item.makingCharge || 0), 0);
 
-    doc.text("Making Charge:", amountLabelX, calcSectionY + 20);
-    doc.text(`(+) Rs. ${Number(invoiceData.makingCharge || 0).toLocaleString('en-IN')}`, amountValueX, calcSectionY + 20, { align: 'right' });
+    doc.text("Total Gold Price:", amountLabelX, calcSectionY);
+    doc.text(`Rs. ${totalGoldPrice.toLocaleString('en-IN', {minimumFractionDigits: 2})}`, amountValueX, calcSectionY, { align: 'right' });
+
+    doc.text("Total Making Charge:", amountLabelX, calcSectionY + 20);
+    doc.text(`(+) Rs. ${totalMakingCharge.toLocaleString('en-IN')}`, amountValueX, calcSectionY + 20, { align: 'right' });
     
     let nextY = calcSectionY + 40;
     
     if (invoiceData.discount && Number(invoiceData.discount) > 0) {
         doc.text("Discount:", amountLabelX, nextY);
-        doc.setTextColor(220, 53, 69); // Red for discount
+        doc.setTextColor(0, 0, 0); // Black instead of Red
         doc.text(`(-) Rs. ${Number(invoiceData.discount).toLocaleString('en-IN')}`, amountValueX, nextY, { align: 'right' });
-        doc.setTextColor(50, 50, 50); // Reset color
+        doc.setTextColor(0, 0, 0); // Reset color
         nextY += 20;
     } else {
         nextY += 10;
@@ -136,7 +148,7 @@ const generatePDF = (invoiceData, action = 'download') => {
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(0, 0, 0);
-    doc.text("Final Amount:", amountLabelX, nextY + 5);
+    doc.text("Grand Total:", amountLabelX, nextY + 5);
     doc.text(`Rs. ${Math.round(invoiceData.finalAmount).toLocaleString('en-IN')}`, amountValueX, nextY + 5, { align: 'right' });
 
     // 6. Footer & Signatures
@@ -145,10 +157,16 @@ const generatePDF = (invoiceData, action = 'download') => {
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     
-    // Customer Signature Left
-    doc.text("Customer's Signature", 80, footerY);
-    doc.line(40, footerY - 10, 200, footerY - 10);
-    
+    // Terms & Conditions at the bottom left
+    const tcY = footerY - 40;
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text("Terms & Conditions:", 40, tcY);
+    doc.setFont("helvetica", "normal");
+    doc.text("1. Goods once sold will not be returned under any conditions.", 40, tcY + 15);
+    doc.text("2. Making charges are non-refundable.", 40, tcY + 30);
+    doc.text("3. Subject to Anand Jurisdiction.", 40, tcY + 45);
+
     // Auth Signature Right
     doc.setFont("helvetica", "bold");
     doc.text("For, PRAYOSHA JEWELLERS", 380, footerY - 30);
@@ -157,7 +175,7 @@ const generatePDF = (invoiceData, action = 'download') => {
     doc.line(360, footerY - 10, 550, footerY - 10);
 
     // Decorative bottom border
-    doc.setDrawColor(212, 175, 55);
+    doc.setDrawColor(0, 0, 0); // Black instead of Gold
     doc.setLineWidth(3);
     doc.line(40, 800, 550, 800);
 

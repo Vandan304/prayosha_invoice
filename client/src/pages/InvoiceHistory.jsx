@@ -12,6 +12,8 @@ const InvoiceHistory = () => {
 
     useEffect(() => {
         fetchInvoices();
+        const interval = setInterval(fetchInvoices, 5000);
+        return () => clearInterval(interval);
     }, []);
 
     useEffect(() => {
@@ -23,10 +25,8 @@ const InvoiceHistory = () => {
         try {
             const data = await getInvoices();
             setInvoices(data);
-            setFilteredInvoices(data);
         } catch (error) {
             console.error('Failed to fetch invoices:', error);
-            alert('Could not load invoice history.');
         } finally {
             setIsLoading(false);
         }

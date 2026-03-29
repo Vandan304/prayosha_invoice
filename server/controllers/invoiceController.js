@@ -49,13 +49,9 @@ const createInvoice = async (req, res) => {
             customerName,
             mobile,
             address,
-            itemName,
-            goldPurity,
-            weight,
+            items,
             goldRate,
-            makingCharge,
             discount,
-            goldPrice,
             finalAmount,
         } = req.body;
 
@@ -72,13 +68,9 @@ const createInvoice = async (req, res) => {
             customerName,
             mobile,
             address,
-            itemName,
-            goldPurity,
-            weight,
+            items,
             goldRate,
-            makingCharge,
             discount,
-            goldPrice,
             finalAmount,
         });
 

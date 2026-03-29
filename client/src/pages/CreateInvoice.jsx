@@ -12,14 +12,15 @@ const CreateInvoice = () => {
     const [nextInvoiceNumber, setNextInvoiceNumber] = useState(1);
     
     const [formData, setFormData] = useState({
+        date: new Date().toISOString().split('T')[0],
+        customRate: '',
         customerName: '',
         mobile: '',
         address: '',
-        itemName: '',
-        goldPurity: '22k',
-        weight: '',
-        makingCharge: '',
         discount: '',
+        items: [
+            { itemName: '', goldPurity: '916 - 22k', weight: '', makingCharge: '' }
+        ]
     });
 
     const [calculations, setCalculations] = useState({
@@ -53,30 +54,34 @@ const CreateInvoice = () => {
     }, []);
 
     useEffect(() => {
-        calculateTotals(formData, dailyGoldRate);
+        const isToday = !formData.date || formData.date === new Date().toISOString().split('T')[0];
+        const activeRate = isToday ? dailyGoldRate : formData.customRate;
+        calculateTotals(formData, activeRate);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [formData.weight, formData.makingCharge, formData.discount, dailyGoldRate]);
+    }, [formData.items, formData.discount, formData.date, formData.customRate, dailyGoldRate]);
 
     const calculateTotals = (data, rate) => {
-        const weight = parseFloat(data.weight) || 0;
         const currentRate = parseFloat(rate) || 0;
-        const making = parseFloat(data.makingCharge) || 0;
         const discount = parseFloat(data.discount) || 0;
 
-        // Formula based on user prompt logic & typical 10g Indian calculation
-        // Assuming rate is per 10g. Formula: GoldPrice = (Weight * Rate * 96) / 1000
-        // (which matches the requested format adjusting for weight)
-        let goldPrice = (weight * currentRate * 96) / 1000;
+        let totalGoldPrice = 0;
+        let totalMakingCharge = 0;
+
+        (data.items || []).forEach(item => {
+            const weight = parseFloat(item.weight) || 0;
+            const making = parseFloat(item.makingCharge) || 0;
+            const goldPrice = (weight * currentRate) / 10;
+            
+            totalGoldPrice += goldPrice;
+            totalMakingCharge += making;
+        });
         
-        // If the user meant rate is per gram: goldPrice = weight * (currentRate * 96 / 100)
-        // I'll compute it as: (weight * currentRate * 9.6) / 100 -> equivalent
-        
-        let finalAmount = goldPrice + making;
+        let finalAmount = totalGoldPrice + totalMakingCharge;
         if (discount > 0) {
             finalAmount -= discount;
         }
 
-        setCalculations({ goldPrice, finalAmount });
+        setCalculations({ goldPrice: totalGoldPrice, finalAmount, totalMakingCharge });
     };
 
     const handleGoldRateSubmit = async (e) => {
@@ -98,6 +103,30 @@ const CreateInvoice = () => {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+    const handleItemChange = (index, field, value) => {
+        setFormData(prev => {
+            const newItems = [...prev.items];
+            newItems[index] = { ...newItems[index], [field]: value };
+            return { ...prev, items: newItems };
+        });
+    };
+
+    const addItem = () => {
+        setFormData(prev => ({
+            ...prev,
+            items: [...prev.items, { itemName: '', goldPurity: '916 - 22k', weight: '', makingCharge: '' }]
+        }));
+    };
+
+    const removeItem = (index) => {
+        if (formData.items.length === 1) return;
+        setFormData(prev => {
+            const newItems = [...prev.items];
+            newItems.splice(index, 1);
+            return { ...prev, items: newItems };
+        });
+    };
+
     const handleKeyDown = (e, index) => {
         if (e.key === 'Enter') {
             e.preventDefault();
@@ -109,67 +138,80 @@ const CreateInvoice = () => {
     };
 
     const validateForm = () => {
-        if (!formData.customerName || !formData.itemName || !formData.weight) {
-            alert('Please fill all required fields (Name, Item, Weight)');
+        if (!formData.customerName || !formData.items || formData.items.length === 0) {
+            alert('Please fill customer name and add at least one item.');
             return false;
         }
-        if (!dailyGoldRate) {
+        
+        const hasInvalidItems = formData.items.some(item => !item.itemName || !item.weight);
+        if (hasInvalidItems) {
+            alert('Please select an Item Name and specify Weight for all items.');
+            return false;
+        }
+        const isToday = !formData.date || formData.date === new Date().toISOString().split('T')[0];
+        if (isToday && !dailyGoldRate) {
             alert('Daily Gold Rate is missing. Please refresh and enter the rate.');
+            return false;
+        }
+        if (!isToday && (!formData.customRate || parseFloat(formData.customRate) <= 0)) {
+            alert('Please enter a valid gold rate for the selected date.');
             return false;
         }
         return true;
     };
 
-    const handleGeneratePDF = (e, action = 'download') => {
-        e.preventDefault();
-        if (!validateForm()) return;
+    const processFormDataForSubmission = () => {
+        const isToday = !formData.date || formData.date === new Date().toISOString().split('T')[0];
+        const activeRate = isToday ? dailyGoldRate : formData.customRate;
+        const currentRate = parseFloat(activeRate) || 0;
 
-        const invoiceData = { 
-            ...formData, 
+        // Calculate goldPrice explicitly per item to store it
+        const processedItems = formData.items.map(item => ({
+            ...item,
+            goldPrice: (parseFloat(item.weight || 0) * currentRate) / 10
+        }));
+
+        return {
+            ...formData,
+            items: processedItems,
             ...calculations,
             invoiceNumber: nextInvoiceNumber,
-            date: new Date().toISOString().split('T')[0],
-            goldRate: dailyGoldRate 
+            date: formData.date || new Date().toISOString().split('T')[0],
+            goldRate: activeRate 
         };
-        
-        generatePDF(invoiceData, action);
     };
 
-    const handleSave = async (e) => {
+    const handleAction = async (e, action = 'download') => {
         e.preventDefault();
         if (!validateForm()) return;
 
         setIsSaving(true);
         try {
-            const finalData = { 
-                ...formData, 
-                ...calculations,
-                goldRate: dailyGoldRate 
-            };
+            const finalData = processFormDataForSubmission();
+            
             const response = await createInvoice(finalData);
+            
+            generatePDF(finalData, action);
             
             // Advance to next invoice ID
             setNextInvoiceNumber(prev => prev + 1);
             
             alert('Invoice saved successfully to database!');
-            // Optional: navigate to history
-            // navigate('/history');
             
             // Clear form
             setFormData({
+                date: new Date().toISOString().split('T')[0],
+                customRate: '',
                 customerName: '',
                 mobile: '',
                 address: '',
-                itemName: '',
-                goldPurity: '22k',
-                weight: '',
-                makingCharge: '',
                 discount: '',
+                items: [{ itemName: '', goldPurity: '916 - 22k', weight: '', makingCharge: '' }]
             });
             inputs.current[0]?.focus();
         } catch (error) {
             console.error('Save failed', error);
-            alert('Failed to save invoice. ' + (error.response?.data?.message || ''));
+            alert('Failed to process invoice. ' + (error.response?.data?.message || ''));
         } finally {
             setIsSaving(false);
         }
@@ -206,15 +248,38 @@ const CreateInvoice = () => {
                 </div>
             )}
 
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-4 mb-6">
                 <h1 className="text-2xl font-bold text-gray-900 flex items-center">
                     <FileText className="mr-2 text-primary" /> Create New Invoice
                 </h1>
-                {dailyGoldRate && (
-                    <div className="bg-yellow-100 text-yellow-800 px-4 py-2 rounded-lg font-mono font-semibold shadow-sm border border-yellow-200">
-                        Rate: ₹{dailyGoldRate}/10g
-                    </div>
-                )}
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <input 
+                        type="date" 
+                        name="date"
+                        value={formData.date}
+                        onChange={handleChange}
+                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-primary focus:border-primary"
+                    />
+                    {(!formData.date || formData.date === new Date().toISOString().split('T')[0]) ? (
+                        dailyGoldRate && (
+                            <div className="bg-yellow-100 text-yellow-800 px-4 py-2 rounded-lg font-mono font-semibold shadow-sm border border-yellow-200" title="Rate per 10g">
+                                ₹{dailyGoldRate}/10g
+                            </div>
+                        )
+                    ) : (
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="number"
+                                name="customRate"
+                                value={formData.customRate}
+                                onChange={handleChange}
+                                placeholder="Rate/10g"
+                                className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-primary focus:border-primary"
+                                required
+                            />
+                        </div>
+                    )}
+                </div>
             </div>
 
             <form className="space-y-6">
@@ -274,83 +339,101 @@ const CreateInvoice = () => {
 
                 {/* --- Section 2: Jewellery Array/Details --- */}
                 <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm border-l-4 border-l-primary">
-                     <h2 className="text-sm uppercase tracking-wider font-semibold text-gray-500 mb-4 border-b pb-2">Jewellery Info</h2>
-                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="sm:col-span-2">
-                            <label className={labelClasses}>Item Name *</label>
-                            <input
-                                type="text"
-                                name="itemName"
-                                value={formData.itemName}
-                                onChange={handleChange}
-                                onKeyDown={(e) => handleKeyDown(e, 3)}
-                                ref={el => inputs.current[3] = el}
-                                className={inputClasses}
-                                placeholder="e.g. Gold Chain, Ring"
-                                required
-                            />
-                        </div>
-                        
-                        <div>
-                            <label className={labelClasses}>Purity</label>
-                            <select
-                                name="goldPurity"
-                                value={formData.goldPurity}
-                                onChange={handleChange}
-                                onKeyDown={(e) => handleKeyDown(e, 4)}
-                                ref={el => inputs.current[4] = el}
-                                className={inputClasses}
-                            >
-                                <option value="22k">22K</option>
-                                <option value="24k">24K</option>
-                                <option value="18k">18K</option>
-                            </select>
-                        </div>
-                        
-                        <div>
-                            <label className={labelClasses}>Weight (grams) *</label>
-                            <input
-                                type="number"
-                                name="weight"
-                                step="0.001"
-                                value={formData.weight}
-                                onChange={handleChange}
-                                onKeyDown={(e) => handleKeyDown(e, 5)}
-                                ref={el => inputs.current[5] = el}
-                                className={inputClasses}
-                                placeholder="e.g. 10.500"
-                                required
-                                inputMode="decimal"
-                            />
-                        </div>
+                     <div className="flex justify-between items-center mb-4 border-b pb-2">
+                         <h2 className="text-sm uppercase tracking-wider font-semibold text-gray-500">Jewellery Items</h2>
+                         <button type="button" onClick={addItem} className="text-sm font-medium text-primary hover:text-yellow-600 bg-yellow-50 px-3 py-1 rounded"> + Add Item</button>
+                     </div>
+                     
+                     <div className="space-y-6">
+                         {formData.items.map((item, index) => (
+                             <div key={index} className="grid grid-cols-1 sm:grid-cols-2 gap-4 relative bg-gray-50 p-4 rounded-lg border border-gray-100">
+                                {formData.items.length > 1 && (
+                                    <button 
+                                        type="button" 
+                                        onClick={() => removeItem(index)} 
+                                        className="absolute -top-3 -right-3 bg-red-100 text-red-600 hover:bg-red-200 rounded-full w-8 h-8 flex items-center justify-center border border-red-200 shadow-sm z-10"
+                                        title="Remove Item"
+                                    >×</button>
+                                )}
+                                <div className="sm:col-span-2">
+                                    <label className={labelClasses}>Item Name *</label>
+                                    <select
+                                        value={item.itemName}
+                                        onChange={(e) => handleItemChange(index, 'itemName', e.target.value)}
+                                        className={inputClasses}
+                                        required
+                                    >
+                                        <option value="" disabled>Select Item</option>
+                                        <option value="ring - L">ring - L</option>
+                                        <option value="ring - G">ring - G</option>
+                                        <option value="ring - K">ring - K</option>
+                                        <option value="chain">chain</option>
+                                        <option value="dokiyu">dokiyu</option>
+                                        <option value="pendal - L">pendal - L</option>
+                                        <option value="pendal - G">pendal - G</option>
+                                        <option value="earring">earring</option>
+                                        <option value="necklase">necklase</option>
+                                        <option value="bracelet - L">bracelet - L</option>
+                                        <option value="kadu">kadu</option>
+                                        <option value="lucky - L">lucky - L</option>
+                                        <option value="lucky - G">lucky - G</option>
+                                        <option value="chudi">chudi</option>
+                                        <option value="bangel">bangel</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label className={labelClasses}>Purity</label>
+                                    <select
+                                        value={item.goldPurity}
+                                        onChange={(e) => handleItemChange(index, 'goldPurity', e.target.value)}
+                                        className={inputClasses}
+                                    >
+                                        <option value="916 - 22k">916 - 22K</option>
+                                        <option value="24k">24K</option>
+                                        <option value="18k">18K</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label className={labelClasses}>Weight (grams) *</label>
+                                    <input
+                                        type="number"
+                                        step="0.001"
+                                        value={item.weight}
+                                        onChange={(e) => handleItemChange(index, 'weight', e.target.value)}
+                                        className={inputClasses}
+                                        placeholder="e.g. 10.500"
+                                        required
+                                        inputMode="decimal"
+                                    />
+                                </div>
 
-                        <div>
-                            <label className={labelClasses}>Making Charge</label>
-                            <input
-                                type="number"
-                                name="makingCharge"
-                                value={formData.makingCharge}
-                                onChange={handleChange}
-                                onKeyDown={(e) => handleKeyDown(e, 6)}
-                                ref={el => inputs.current[6] = el}
-                                className={inputClasses}
-                                placeholder="Total making charge"
-                                inputMode="numeric"
-                            />
-                        </div>
-                        
-                        <div>
-                            <label className={labelClasses}>Discount (Optional)</label>
-                            <input
-                                type="number"
-                                name="discount"
-                                value={formData.discount}
-                                onChange={handleChange}
-                                className={inputClasses}
-                                placeholder="Discount amount"
-                                inputMode="numeric"
-                            />
-                        </div>
+                                <div>
+                                    <label className={labelClasses}>Making Charge</label>
+                                    <input
+                                        type="number"
+                                        value={item.makingCharge}
+                                        onChange={(e) => handleItemChange(index, 'makingCharge', e.target.value)}
+                                        className={inputClasses}
+                                        placeholder="₹0"
+                                        inputMode="numeric"
+                                    />
+                                </div>
+                             </div>
+                         ))}
+                     </div>
+                     <div className="mt-6 pt-4 border-t border-gray-100">
+                        <label className={labelClasses}>Overall Discount (Optional)</label>
+                        <input
+                            type="number"
+                            name="discount"
+                            value={formData.discount}
+                            onChange={handleChange}
+                            className={inputClasses}
+                            placeholder="Discount amount"
+                            inputMode="numeric"
+                        />
                      </div>
                 </div>
 
@@ -362,8 +445,8 @@ const CreateInvoice = () => {
                             <span className="font-mono text-gray-900 font-medium">₹ {(calculations.goldPrice).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                         </div>
                         <div className="flex justify-between text-gray-600 text-lg border-b border-primary/20 pb-3">
-                            <span>Making Charge:</span>
-                            <span className="font-mono text-gray-900 font-medium">+ ₹ {(parseFloat(formData.makingCharge)||0).toLocaleString('en-IN')}</span>
+                            <span>Total Making Charge:</span>
+                            <span className="font-mono text-gray-900 font-medium">+ ₹ {(calculations.totalMakingCharge || 0).toLocaleString('en-IN')}</span>
                         </div>
                         {formData.discount && parseFloat(formData.discount) > 0 && (
                             <div className="flex justify-between text-gray-600 text-lg transition-all">
@@ -380,30 +463,23 @@ const CreateInvoice = () => {
 
                 {/* --- Action Buttons (Desktop and inline Mobile) --- */}
                 <div className="hidden sm:flex gap-4 pt-6 justify-end border-t border-gray-200">
-                    <button type="button" onClick={() => setFormData({customerName: '', mobile: '', address: '', itemName: '', goldPurity: '22k', weight: '', makingCharge: '', discount: ''})} className="px-6 py-3 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-100 flex items-center">
+                    <button type="button" onClick={() => setFormData({date: new Date().toISOString().split('T')[0], customRate: '', customerName: '', mobile: '', address: '', discount: '', items: [{ itemName: '', goldPurity: '916 - 22k', weight: '', makingCharge: '' }]})} className="px-6 py-3 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-100 flex items-center">
                         <RefreshCw size={18} className="mr-2" /> Clear
                     </button>
-                    <button type="button" onClick={handleSave} disabled={isSaving} className="px-6 py-3 rounded-lg bg-green-600 text-white font-medium hover:bg-green-700 flex items-center shadow-md">
-                        <Save size={18} className="mr-2" /> {isSaving ? 'Saving...' : 'Save Data'}
+                    <button type="button" onClick={(e) => handleAction(e, 'print')} disabled={isSaving} className="px-6 py-3 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 flex items-center shadow-md">
+                        <Printer size={18} className="mr-2" /> {isSaving ? 'Saving...' : 'Print PDF'}
                     </button>
-                    <button type="button" onClick={(e) => handleGeneratePDF(e, 'print')} className="px-6 py-3 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 flex items-center shadow-md">
-                        <Printer size={18} className="mr-2" /> Print PDF
-                    </button>
-                    <button type="button" onClick={(e) => handleGeneratePDF(e, 'download')} className="px-6 py-3 rounded-lg bg-primary text-secondary font-bold hover:bg-yellow-500 flex items-center shadow-md">
-                        <Download size={18} className="mr-2" /> Download
+                    <button type="button" onClick={(e) => handleAction(e, 'download')} disabled={isSaving} className="px-6 py-3 rounded-lg bg-primary text-secondary font-bold hover:bg-yellow-500 flex items-center shadow-md">
+                        <Download size={18} className="mr-2" /> {isSaving ? 'Saving...' : 'Download'}
                     </button>
                 </div>
 
-                {/* --- Sticky Action Buttons (Mobile) --- */}
                 <div className="sm:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 shadow-[0_-8px_15px_-3px_rgba(0,0,0,0.1)] p-3 z-40 grid grid-cols-2 gap-2 pb-5">
-                    <button type="button" onClick={(e) => handleGeneratePDF(e, 'print')} className="py-3 rounded-lg bg-blue-600 text-white font-medium flex justify-center items-center shadow-sm">
-                        <Printer size={18} className="mr-1" /> Print
+                    <button type="button" onClick={(e) => handleAction(e, 'print')} disabled={isSaving} className="py-3 rounded-lg bg-blue-600 text-white font-medium flex justify-center items-center shadow-sm">
+                        <Printer size={18} className="mr-1" /> {isSaving ? '...' : 'Print'}
                     </button>
-                    <button type="button" onClick={(e) => handleGeneratePDF(e, 'download')} className="py-3 rounded-lg bg-primary text-secondary font-bold flex justify-center items-center shadow-sm">
-                        <Download size={18} className="mr-1" /> PDF
-                    </button>
-                    <button type="button" onClick={handleSave} disabled={isSaving} className="col-span-2 py-3 mt-1 rounded-lg border-2 border-green-600 bg-green-50 text-green-700 font-bold hover:bg-green-100 flex justify-center items-center">
-                        <Save size={18} className="mr-2" /> {isSaving ? 'Saving...' : 'Save to DB'}
+                    <button type="button" onClick={(e) => handleAction(e, 'download')} disabled={isSaving} className="py-3 rounded-lg bg-primary text-secondary font-bold flex justify-center items-center shadow-sm">
+                        <Download size={18} className="mr-1" /> {isSaving ? '...' : 'PDF'}
                     </button>
                 </div>
             </form>
