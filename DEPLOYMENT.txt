@@ -1,0 +1,44 @@
+DEPLOYMENT GUIDE: PRAYOSHA INVOICE
+
+This project is configured as a monorepo containing both a React frontend (Vite) and an Express backend. It is optimized for deployment on Vercel.
+
+OPTION 1: VERCEL (RECOMMENDED)
+
+1. PREREQUISITES
+- Push your code to a GitHub repository.
+
+2. VERCEL PROJECT SETUP
+- Go to the Vercel Dashboard and click "Add New > Project".
+- Import your GitHub repository.
+- Use the default "Vite" framework preset.
+- Root Directory: Leave it as "/" (the project root).
+- Vercel will use "vercel.json" to handle the deployment.
+
+3. ENVIRONMENT VARIABLES
+In Vercel Settings > Environment Variables, add:
+- MONGO_URI: (Your MongoDB connection string)
+- NODE_ENV: production
+- VITE_API_URL: /api (or your backend URL)
+
+4. DEPLOYMENT
+Vercel will deploy automatically whenever you push to the "main" branch.
+
+
+OPTION 2: RENDER (FOR HEAVY BACKEND TASKS)
+
+If the backend feels slow on Vercel or you need real-time features (WebSockets):
+
+1. RENDER WEB SERVICE SETUP
+- Root Directory: server
+- Build Command: npm install
+- Start Command: node server.js
+- Environment Variables: MONGO_URI
+
+2. FRONTEND UPDATE
+If you move the backend to Render, update "client/src/services/api.js":
+baseURL: 'https://your-render-app.onrender.com/api'
+
+
+VERIFICATION
+- Frontend: https://your-app.vercel.app/
+- Backend API: https://your-app.vercel.app/api
